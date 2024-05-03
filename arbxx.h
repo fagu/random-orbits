@@ -1,7 +1,11 @@
 #include <cassert>
 #include <random>
-#include <flint/arb.h>
 #include "fmpzxx.h"
+#if __FLINT_VERSION == 2
+#include <arb.h>
+#else
+#include <flint/arb.h>
+#endif
 using namespace std;
 
 struct insufficient_precision {};
