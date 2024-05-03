@@ -28,8 +28,8 @@ public:
 	}
 	// 2^e
 	static fmpzxx exp2(ulong e) {
-		fmpzxx res;
-		fmpz_one_2exp(res.inner, e);
+		fmpzxx res = 1;
+		fmpz_mul_2exp(res.inner, res.inner, e);
 		return res;
 	}
 	friend fmpzxx& operator*=(fmpzxx& a, const fmpzxx& b) {
