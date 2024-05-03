@@ -195,7 +195,7 @@ public:
 		numerator *= fmpzxx::exp2(new_prec - prec);
 		for (slong i = new_prec - prec - 1; i >= 0; i--)
 			if (uniform_int_distribution<slong>(0,1)(gen))
-				numerator.setbit(i);
+				numerator.set_bit(i);
 		prec = new_prec;
 	}
 	// Returns the interval with current precision contain the random number.

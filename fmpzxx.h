@@ -36,7 +36,7 @@ public:
 		fmpz_mul(a.inner, a.inner, b.inner);
 		return a;
 	}
-	void setbit(ulong i) {
+	void set_bit(ulong i) {
 		fmpz_setbit(inner, i);
 	}
 	friend fmpzxx operator+(const fmpzxx& a, const fmpzxx& b) {
