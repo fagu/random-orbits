@@ -6,6 +6,7 @@
 #include <getopt.h>
 #include "lib.h"
 #include "arbxx.h"
+#include "progress.h"
 using namespace std;
 
 #define ADD(a,b) add(a, b, prec)
@@ -311,10 +312,13 @@ void show_help(const char* program_name) {
 		"\n"
 		"Options:\n"
 		"  --only-maximal   Only generate maximal orders.\n"
+		"                   Note: This can be slow because the discriminant needs\n"
+		"                         to be factored.\n"
 		"  --only-triv-aut  Only generate rings with trivial automorphism group.\n"
 		"  --verbose        Print extra information to stderr.\n"
 		"  --seed [SEED]    Unsigned 32 bit integer to use as a seed for the\n"
 		"                   random number generator.\n"
+		"  --progress       Show progress and ETA.\n"
 		"  -h               Print this help message.\n",
 		program_name);
 }
@@ -328,6 +332,7 @@ long long nr_orbits;
 parameters params;
 int verbose;
 unsigned int seed;
+int progress;
 
 void parse_args(int argc, char **argv) {
 	const char* program_name = argc > 0 ? argv[0] : "random-cubic";
@@ -335,11 +340,13 @@ void parse_args(int argc, char **argv) {
 	int only_triv_aut = 0;
 	verbose = 0;
 	seed = 471932630;
+	progress = 0;
 	static option long_options[] = {
 		{"only-maximal", no_argument, &only_maximal, 1},
 		{"only-triv-aut", no_argument, &only_triv_aut, 1},
 		{"verbose", no_argument, &verbose, 1},
 		{"seed", required_argument, 0, 's'},
+		{"progress", no_argument, &progress, 1},
 		{0, 0, 0, 0}
 	};
 	int c;
@@ -415,6 +422,8 @@ int main(int argc, char **argv) {
 	mt19937 gen(seed);
 	
 	for(long long roun = 0; roun < nr_orbits; roun++) {
+		if (progress)
+			show_progress(roun, nr_orbits);
 		fmpz_polyxx f = generate(params, gen);
 		for (int i = 0; i < 4; i++) {
 			if (i)
@@ -423,6 +432,8 @@ int main(int argc, char **argv) {
 		}
 		printf("\n");
 	}
+	if (progress)
+		clear_progress();
 	if (verbose) {
 		fprintf(stderr, "Maximum precision used: %ld\n", max_precision);
 		fprintf(stderr, "Running times:\n");
