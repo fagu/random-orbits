@@ -31,6 +31,13 @@ long long fail_abs_disc = 0;
 long long fail_in_ball = 0;
 long long fail_irreducible = 0;
 
+struct parameters {
+	int nr_real_embeddings;
+	fmpzxx T; // discriminant bound
+	bool only_maximal;
+	bool only_triv_aut;
+};
+
 // Let f be a cubic form which is irreducible over Q.
 // The automorphism group of the corresponding cubic ring R is either C_3 or trivial.
 // This function returns whether the automorphism group of R is trivial.
@@ -73,7 +80,7 @@ bool is_maximal(const fmpz_polyxx& f) {
 }
 
 template<class Generator>
-optional<fmpz_polyxx> try_generate(fmpzxx T, int nr_real_embeddings, Generator& gen) {
+optional<fmpz_polyxx> try_generate(const parameters& params, Generator& gen) {
 	rand_real prob, randt, rands, randk1, randk2, randk3, randk4;
 	for (slong prec = 20; ; prec *= 2) {
 		if (max_precision < prec)
@@ -93,9 +100,9 @@ optional<fmpz_polyxx> try_generate(fmpzxx T, int nr_real_embeddings, Generator& 
 		arbxx sqrt5 = SQRT(5);
 		// R = 5 / 4 for totally real fields
 		// R = 7 / 4 for not totally real fields
-		arbxx R = nr_real_embeddings == 3 ? DIV(5, 4) : DIV(7, 4);
+		arbxx R = params.nr_real_embeddings == 3 ? DIV(5, 4) : DIV(7, 4);
 		// lambda = R * T^(1/4)
-		arbxx lambda = MUL(R, ROOT(T, 4));
+		arbxx lambda = MUL(R, ROOT(params.T, 4));
 		// smin = sqrt(sqrt(3) / 2)
 		arbxx smin = SQRT(DIV(sqrt3, 2));
 		// smax = (lambda / 2)^(1/3)
@@ -194,7 +201,7 @@ optional<fmpz_polyxx> try_generate(fmpzxx T, int nr_real_embeddings, Generator& 
 			}
 			fmpzxx disc = f.disc();
 			//fmpz_poly_discriminant(disc._fmpz(), f._poly());
-			int disc_sgn = nr_real_embeddings == 3 ? 1 : -1;
+			int disc_sgn = params.nr_real_embeddings == 3 ? 1 : -1;
 			if (disc.sgn() != disc_sgn) {
 				// Wrong signature.
 				// Start over.
@@ -202,7 +209,7 @@ optional<fmpz_polyxx> try_generate(fmpzxx T, int nr_real_embeddings, Generator& 
 				return nullopt;
 			}
 			fmpzxx absdisc(disc.abs());
-			if (absdisc > T) {
+			if (absdisc > params.T) {
 				// Start over.
 				fail_abs_disc++;
 				return nullopt;
@@ -249,11 +256,24 @@ optional<fmpz_polyxx> try_generate(fmpzxx T, int nr_real_embeddings, Generator& 
 				fail_irreducible++;
 				return nullopt;
 			}
+			if (params.only_triv_aut && !is_triv_aut(f))
+				return nullopt;
+			if (params.only_maximal && !is_maximal(f))
+				return nullopt;
 			return f;
 		} catch (insufficient_precision) {
 			// Increase precision.
 			// fprintf(stderr, "Increasing precision.\n");
 		}
+	}
+}
+
+template<class Generator>
+fmpz_polyxx generate(const parameters& params, Generator& gen) {
+	while(true) {
+		optional<fmpz_polyxx> f = try_generate(params, gen);
+		if (f.has_value())
+			return f.value();
 	}
 }
 
@@ -278,16 +298,13 @@ void show_help(const char* program_name) {
 	exit(1);
 }
 
-int only_maximal;
-int only_triv_aut;
 long long nr_orbits;
-int nr_real_embeddings;
-fmpzxx T;
+parameters params;
 
 void parse_args(int argc, char **argv) {
 	const char* program_name = argc > 0 ? argv[0] : "random-cubic";
-	only_maximal = 0;
-	only_triv_aut = 0;
+	int only_maximal = 0;
+	int only_triv_aut = 0;
 	static option long_options[] = {
 		{"only-maximal", no_argument, &only_maximal, 1},
 		{"only-triv-aut", no_argument, &only_triv_aut, 1},
@@ -311,19 +328,21 @@ void parse_args(int argc, char **argv) {
 			abort();
 		}
 	}
+	params.only_maximal = only_maximal;
+	params.only_triv_aut = only_triv_aut;
 	if (optind >= argc || sscanf(argv[optind], "%lld", &nr_orbits) != 1 || !(nr_orbits >= 0))
 		err_help(program_name);
 	optind++;
-	if (optind >= argc || sscanf(argv[optind], "%d", &nr_real_embeddings) != 1 || !(nr_real_embeddings == 1 || nr_real_embeddings == 3))
+	if (optind >= argc || sscanf(argv[optind], "%d", &params.nr_real_embeddings) != 1 || !(params.nr_real_embeddings == 1 || params.nr_real_embeddings == 3))
 		err_help(program_name);
 	optind++;
-	if (optind >= argc || fmpz_set_str(T._fmpz(), argv[optind], 10) != 0)
+	if (optind >= argc || fmpz_set_str(params.T._fmpz(), argv[optind], 10) != 0)
 		err_help(program_name);
-	if (nr_real_embeddings == 3 && T < 49) {
+	if (params.nr_real_embeddings == 3 && params.T < 49) {
 		fprintf(stderr, "There is no irreducible orbit with 0<disc<49.\n");
 		exit(1);
 	}
-	if (nr_real_embeddings == 1 && T < 23) {
+	if (params.nr_real_embeddings == 1 && params.T < 23) {
 		fprintf(stderr, "There is no irreducible orbit with 0<-disc<23.\n");
 		exit(1);
 	}
@@ -341,30 +360,14 @@ int main(int argc, char **argv) {
 	
 	mt19937 gen(42); // TODO
 	
-	// map<fmpzxx,long long> count;
 	for(long long roun = 0; roun < nr_orbits; roun++) {
-		// for (int att = 1; ; att++) {
-		while(true) {
-			optional<fmpz_polyxx> f = try_generate(T, nr_real_embeddings, gen);
-			if (!f.has_value())
-				continue;
-			if (only_maximal && !is_maximal(f.value()))
-				continue;
-			if (only_triv_aut && !is_triv_aut(f.value()))
-				continue;
-			//cout << f.value().pretty("x") << endl;
-			for (int i = 0; i < 4; i++) {
-				if (i)
-					printf(" ");
-				fmpz_print(f.value().coeff(i).inner);
-			}
-			printf("\n");
-			// cout << " after " << att << " attempts." << endl;
-			// fmpzxx disc;
-			// fmpz_poly_discriminant(disc._fmpz(), f.value()._poly());
-			// count[disc]++;
-			break;
+		fmpz_polyxx f = generate(params, gen);
+		for (int i = 0; i < 4; i++) {
+			if (i)
+				printf(" ");
+			fmpz_print(f.coeff(i).inner);
 		}
+		printf("\n");
 	}
 	fprintf(stderr, "Maximum precision used: %ld\n", max_precision);
 	fprintf(stderr, "Running times:\n");
@@ -378,9 +381,5 @@ int main(int argc, char **argv) {
 	fprintf(stderr, "  |disc| > T: %lld\n", fail_abs_disc);
 	fprintf(stderr, "  f lying outside transformed ball: %lld\n", fail_in_ball);
 	fprintf(stderr, "  reducibility: %lld\n", fail_irreducible);
-	// fprintf(stderr, "Statistics:\n");
-	// for (auto [d,c] : count) {
-	// 	fprintf(stderr, " disc = %s: %lld times\n", d.to_string().c_str(), c);
-	// }
 	return 0;
 }
