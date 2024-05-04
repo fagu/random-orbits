@@ -33,21 +33,21 @@ long long fail_irreducible = 0;
 
 // Let f be a cubic form which is irreducible over Q.
 // The automorphism group of the corresponding cubic ring R is either C_3 or trivial.
-// This function returns whether R has automorphism group C_3.
-bool is_galois(const fmpz_polyxx& f) {
+// This function returns whether the automorphism group of R is trivial.
+bool is_triv_aut(const fmpz_polyxx& f) {
 	fmpzxx a = f.coeff(3);
 	fmpzxx b = f.coeff(2);
 	fmpzxx c = f.coeff(1);
 	fmpzxx d = f.coeff(0);
 	fmpzxx disc = f.disc();
 	if (!disc.is_square())
-		return false;
+		return true;
 	fmpzxx s = disc.sqrt();
 	if (!((3*a*c - b*b).divisible_by(s)))
-		return false;
+		return true;
 	if (!((3*b*d - c*c).divisible_by(s)))
-		return false;
-	return true;
+		return true;
+	return false;
 }
 
 // Let f be a polynomial of degree three with discriminant != 0.
@@ -267,8 +267,9 @@ void show_help(const char* program_name) {
 		"proportional to 1/#Stab(f).\n"
 		"\n"
 		"Options:\n"
-		"  --only-maximal  Only generate maximal orders.\n"
-		"  -h              Print this help message.\n",
+		"  --only-maximal   Only generate maximal orders.\n"
+		"  --only-triv-aut  Only print orders with trivial automorphism group.\n"
+		"  -h               Print this help message.\n",
 		program_name);
 }
 
@@ -278,6 +279,7 @@ void show_help(const char* program_name) {
 }
 
 int only_maximal;
+int only_triv_aut;
 long long nr_orbits;
 int nr_real_embeddings;
 fmpzxx T;
@@ -285,8 +287,10 @@ fmpzxx T;
 void parse_args(int argc, char **argv) {
 	const char* program_name = argc > 0 ? argv[0] : "random-cubic";
 	only_maximal = 0;
+	only_triv_aut = 0;
 	static option long_options[] = {
 		{"only-maximal", no_argument, &only_maximal, 1},
+		{"only-triv-aut", no_argument, &only_triv_aut, 1},
 		{0, 0, 0, 0}
 	};
 	int c;
@@ -328,6 +332,8 @@ void parse_args(int argc, char **argv) {
 		err_help(program_name);
 	if (only_maximal)
 		fprintf(stderr, "Only generating maximal orders.\n");
+	if (only_triv_aut)
+		fprintf(stderr, "Only generating orders with trivial automorphism group.\n");
 }
 
 int main(int argc, char **argv) {
@@ -340,20 +346,24 @@ int main(int argc, char **argv) {
 		// for (int att = 1; ; att++) {
 		while(true) {
 			optional<fmpz_polyxx> f = try_generate(T, nr_real_embeddings, gen);
-			if (f.has_value() && (!only_maximal || is_maximal(f.value()))) {
-				//cout << f.value().pretty("x") << endl;
-				for (int i = 0; i < 4; i++) {
-					if (i)
-						printf(" ");
-					fmpz_print(f.value().coeff(i).inner);
-				}
-				printf("\n");
-				// cout << " after " << att << " attempts." << endl;
-				// fmpzxx disc;
-				// fmpz_poly_discriminant(disc._fmpz(), f.value()._poly());
-				// count[disc]++;
-				break;
+			if (!f.has_value())
+				continue;
+			if (only_maximal && !is_maximal(f.value()))
+				continue;
+			if (only_triv_aut && !is_triv_aut(f.value()))
+				continue;
+			//cout << f.value().pretty("x") << endl;
+			for (int i = 0; i < 4; i++) {
+				if (i)
+					printf(" ");
+				fmpz_print(f.value().coeff(i).inner);
 			}
+			printf("\n");
+			// cout << " after " << att << " attempts." << endl;
+			// fmpzxx disc;
+			// fmpz_poly_discriminant(disc._fmpz(), f.value()._poly());
+			// count[disc]++;
+			break;
 		}
 	}
 	fprintf(stderr, "Maximum precision used: %ld\n", max_precision);
