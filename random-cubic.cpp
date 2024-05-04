@@ -400,10 +400,16 @@ int main(int argc, char **argv) {
 	parse_args(argc, argv);
 	
 	if (verbose) {
+		fprintf(stderr, "N = %lld\n", nr_orbits);
+		fprintf(stderr, "r = %d\n", params.nr_real_embeddings);
+		fprintf(stderr, "T = ");
+		fmpz_fprint(stderr, params.T.inner);
+		fprintf(stderr, "\n");
+		fprintf(stderr, "seed = %u\n", seed);
 		if (params.only_maximal)
 			fprintf(stderr, "Only generating maximal orders.\n");
 		if (params.only_triv_aut)
-			fprintf(stderr, "Only generating orders with trivial automorphism group.\n");
+			fprintf(stderr, "Only generating rings with trivial automorphism group.\n");
 	}
 	
 	mt19937 gen(seed);
