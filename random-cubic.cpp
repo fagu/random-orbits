@@ -33,6 +33,7 @@ long long fail_abs_disc = 0;
 long long fail_in_ball = 0;
 long long fail_irreducible = 0;
 long long fail_aut = 0;
+long long fail_uniform = 0;
 long long fail_maximal = 0;
 
 struct parameters {
@@ -40,6 +41,7 @@ struct parameters {
 	fmpzxx T; // discriminant bound
 	bool only_maximal;
 	bool only_triv_aut;
+	bool uniform;
 };
 
 // Let f be a cubic form which is irreducible over Q.
@@ -264,6 +266,11 @@ optional<fmpz_polyxx> try_generate(const parameters& params, Generator& gen) {
 				fail_aut++;
 				return nullopt;
 			}
+			if (params.uniform && is_triv_aut(f) && uniform_int_distribution<int>(0,2)(gen) != 0) {
+				// Fail with probability 2/3 if Aut(R) = 1.
+				fail_uniform++;
+				return nullopt;
+			}
 			if (params.only_maximal && !is_maximal(f)) {
 				fail_maximal++;
 				return nullopt;
@@ -315,6 +322,8 @@ void show_help(const char* program_name) {
 		"                   Note: This can be slow because the discriminant needs\n"
 		"                         to be factored.\n"
 		"  --only-triv-aut  Only generate rings with trivial automorphism group.\n"
+		"  --uniform        Generate all rings with the same probability, instead\n"
+		"                   of with probability proportional to 1 / #Aut(R).\n"
 		"  --verbose        Print extra information to stderr.\n"
 		"  --seed [SEED]    Unsigned 32 bit integer to use as a seed for the\n"
 		"                   random number generator.\n"
@@ -338,12 +347,14 @@ void parse_args(int argc, char **argv) {
 	const char* program_name = argc > 0 ? argv[0] : "random-cubic";
 	int only_maximal = 0;
 	int only_triv_aut = 0;
+	int uniform = 0;
 	verbose = 0;
 	seed = 471932630;
 	progress = 0;
 	static option long_options[] = {
 		{"only-maximal", no_argument, &only_maximal, 1},
 		{"only-triv-aut", no_argument, &only_triv_aut, 1},
+		{"uniform", no_argument, &uniform, 1},
 		{"verbose", no_argument, &verbose, 1},
 		{"seed", required_argument, 0, 's'},
 		{"progress", no_argument, &progress, 1},
@@ -375,6 +386,7 @@ void parse_args(int argc, char **argv) {
 	}
 	params.only_maximal = only_maximal;
 	params.only_triv_aut = only_triv_aut;
+	params.uniform = uniform;
 	if (optind >= argc || sscanf(argv[optind], "%lld", &nr_orbits) != 1 || !(nr_orbits >= 0))
 		err_help(program_name);
 	optind++;
@@ -448,6 +460,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "  f lying outside transformed ball: %lld\n", fail_in_ball);
 		fprintf(stderr, "  reducibility: %lld\n", fail_irreducible);
 		fprintf(stderr, "  automorphism group: %lld\n", fail_aut);
+		fprintf(stderr, "  uniformness: %lld\n", fail_uniform);
 		fprintf(stderr, "  maximality: %lld\n", fail_maximal);
 	}
 	return 0;
