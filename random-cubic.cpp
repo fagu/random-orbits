@@ -30,6 +30,8 @@ long long fail_signature = 0;
 long long fail_abs_disc = 0;
 long long fail_in_ball = 0;
 long long fail_irreducible = 0;
+long long fail_aut = 0;
+long long fail_maximal = 0;
 
 struct parameters {
 	int nr_real_embeddings;
@@ -256,10 +258,14 @@ optional<fmpz_polyxx> try_generate(const parameters& params, Generator& gen) {
 				fail_irreducible++;
 				return nullopt;
 			}
-			if (params.only_triv_aut && !is_triv_aut(f))
+			if (params.only_triv_aut && !is_triv_aut(f)) {
+				fail_aut++;
 				return nullopt;
-			if (params.only_maximal && !is_maximal(f))
+			}
+			if (params.only_maximal && !is_maximal(f)) {
+				fail_maximal++;
 				return nullopt;
+			}
 			return f;
 		} catch (insufficient_precision) {
 			// Increase precision.
@@ -289,6 +295,7 @@ void show_help(const char* program_name) {
 		"Options:\n"
 		"  --only-maximal   Only generate maximal orders.\n"
 		"  --only-triv-aut  Only print orders with trivial automorphism group.\n"
+		"  --verbose        Print extra information to stderr.\n"
 		"  -h               Print this help message.\n",
 		program_name);
 }
@@ -300,14 +307,17 @@ void show_help(const char* program_name) {
 
 long long nr_orbits;
 parameters params;
+int verbose;
 
 void parse_args(int argc, char **argv) {
 	const char* program_name = argc > 0 ? argv[0] : "random-cubic";
 	int only_maximal = 0;
 	int only_triv_aut = 0;
+	verbose = 0;
 	static option long_options[] = {
 		{"only-maximal", no_argument, &only_maximal, 1},
 		{"only-triv-aut", no_argument, &only_triv_aut, 1},
+		{"verbose", no_argument, &verbose, 1},
 		{0, 0, 0, 0}
 	};
 	int c;
@@ -349,14 +359,17 @@ void parse_args(int argc, char **argv) {
 	optind++;
 	if (optind != argc)
 		err_help(program_name);
-	if (only_maximal)
-		fprintf(stderr, "Only generating maximal orders.\n");
-	if (only_triv_aut)
-		fprintf(stderr, "Only generating orders with trivial automorphism group.\n");
 }
 
 int main(int argc, char **argv) {
 	parse_args(argc, argv);
+	
+	if (verbose) {
+		if (params.only_maximal)
+			fprintf(stderr, "Only generating maximal orders.\n");
+		if (params.only_triv_aut)
+			fprintf(stderr, "Only generating orders with trivial automorphism group.\n");
+	}
 	
 	mt19937 gen(42); // TODO
 	
@@ -369,17 +382,21 @@ int main(int argc, char **argv) {
 		}
 		printf("\n");
 	}
-	fprintf(stderr, "Maximum precision used: %ld\n", max_precision);
-	fprintf(stderr, "Running times:\n");
-	fprintf(stderr, "  generate random numbers: %lfs\n", time_random.count());
-	fprintf(stderr, "  check irreducibility: %lfs\n", time_irreducible.count());
-	fprintf(stderr, "Number of failures due to:\n");
-	fprintf(stderr, "  s > smax: %lld\n", fail_smax);
-	fprintf(stderr, "  probability: %lld\n", fail_prob);
-	fprintf(stderr, "  a = 0: %lld\n", fail_azero);
-	fprintf(stderr, "  wrong signature: %lld\n", fail_signature);
-	fprintf(stderr, "  |disc| > T: %lld\n", fail_abs_disc);
-	fprintf(stderr, "  f lying outside transformed ball: %lld\n", fail_in_ball);
-	fprintf(stderr, "  reducibility: %lld\n", fail_irreducible);
+	if (verbose) {
+		fprintf(stderr, "Maximum precision used: %ld\n", max_precision);
+		fprintf(stderr, "Running times:\n");
+		fprintf(stderr, "  generate random numbers: %lfs\n", time_random.count());
+		fprintf(stderr, "  check irreducibility: %lfs\n", time_irreducible.count());
+		fprintf(stderr, "Number of failures due to:\n");
+		fprintf(stderr, "  s > smax: %lld\n", fail_smax);
+		fprintf(stderr, "  probability: %lld\n", fail_prob);
+		fprintf(stderr, "  a = 0: %lld\n", fail_azero);
+		fprintf(stderr, "  wrong signature: %lld\n", fail_signature);
+		fprintf(stderr, "  |disc| > T: %lld\n", fail_abs_disc);
+		fprintf(stderr, "  f lying outside transformed ball: %lld\n", fail_in_ball);
+		fprintf(stderr, "  reducibility: %lld\n", fail_irreducible);
+		fprintf(stderr, "  automorphism group: %lld\n", fail_aut);
+		fprintf(stderr, "  maximality: %lld\n", fail_maximal);
+	}
 	return 0;
 }
