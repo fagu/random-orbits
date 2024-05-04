@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstring>
 #include <optional>
 #include <random>
 #include <unistd.h>
@@ -292,6 +293,14 @@ void show_help(const char* program_name) {
 		"irreducible over Q and satisfy |disc(f)| <= T, with probability\n"
 		"proportional to 1/#Stab(f).\n"
 		"\n"
+		"Parameters:\n"
+		"  N  Number of orders to generate.\n"
+		"  r  Number of real embeddings (either 1 or 3).\n"
+		"  T  Upper bound on the absolute value of the discriminant.\n"
+		"     Instead of an integer, you can pass '-' as an argument.\n"
+		"     In that case, pass the bound T to the program through stdin.\n"
+		"     (This can be helpful if you want to use a very large number T.)\n"
+		"\n"
 		"Options:\n"
 		"  --only-maximal   Only generate maximal orders.\n"
 		"  --only-triv-aut  Only generate orders with trivial automorphism group.\n"
@@ -356,8 +365,16 @@ void parse_args(int argc, char **argv) {
 	if (optind >= argc || sscanf(argv[optind], "%d", &params.nr_real_embeddings) != 1 || !(params.nr_real_embeddings == 1 || params.nr_real_embeddings == 3))
 		err_help(program_name);
 	optind++;
-	if (optind >= argc || fmpz_set_str(params.T._fmpz(), argv[optind], 10) != 0)
+	if (optind >= argc)
 		err_help(program_name);
+	if (strcmp(argv[optind], "-") == 0) {
+		if (fmpz_fread(stdin, params.T._fmpz()) <= 0)
+			err_help(program_name);
+	} else {
+		if (fmpz_set_str(params.T._fmpz(), argv[optind], 10) != 0)
+			err_help(program_name);
+	}
+	optind++;
 	if (params.nr_real_embeddings == 3 && params.T < 49) {
 		fprintf(stderr, "There is no irreducible orbit with 0<disc<49.\n");
 		exit(1);
@@ -366,7 +383,6 @@ void parse_args(int argc, char **argv) {
 		fprintf(stderr, "There is no irreducible orbit with 0<-disc<23.\n");
 		exit(1);
 	}
-	optind++;
 	if (optind != argc)
 		err_help(program_name);
 }
