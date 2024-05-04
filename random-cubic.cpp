@@ -29,6 +29,47 @@ long long fail_abs_disc = 0;
 long long fail_in_ball = 0;
 long long fail_irreducible = 0;
 
+// Let f be a cubic form which is irreducible over Q.
+// The automorphism group of the corresponding cubic ring R is either C_3 or trivial.
+// This function returns whether R has automorphism group C_3.
+bool is_galois(const fmpz_polyxx& f) {
+	fmpzxx a = f.coeff(3);
+	fmpzxx b = f.coeff(2);
+	fmpzxx c = f.coeff(1);
+	fmpzxx d = f.coeff(0);
+	fmpzxx disc = f.disc();
+	if (!disc.is_square())
+		return false;
+	fmpzxx s = disc.sqrt();
+	if (!((3*a*c - b*b).divisible_by(s)))
+		return false;
+	if (!((3*b*d - c*c).divisible_by(s)))
+		return false;
+	return true;
+}
+
+// Let f be a polynomial of degree three with discriminant != 0.
+// This function returns whether the corresponding cubic ring is a maximal order.
+bool is_maximal(const fmpz_polyxx& f) {
+	fmpzxx disc = f.disc();
+	for (const auto& pe : disc.factor_abs()) {
+		if (pe.second >= 2) {
+			fmpzxx p = pe.first;
+			if (f.coeff(3).divisible_by(p) && f.coeff(2).divisible_by(p) && f.coeff(1).divisible_by(p) && f.coeff(0).divisible_by(p))
+				return false;
+			if (f.coeff(3).divisible_by(p * p) && f.coeff(2).divisible_by(p))
+				return false;
+			for (const auto& re : f.roots_mod(p)) {
+				fmpzxx r = re.first;
+				assert(f(r) == 0);
+				if (f(r).divisible_by(p * p) && f(r + p).divisible_by(p * p))
+					return false;
+			}
+		}
+	}
+	return true;
+}
+
 template<class Generator>
 optional<fmpz_polyxx> try_generate(fmpzxx T, int nr_real_embeddings, Generator& gen) {
 	rand_real prob, randt, rands, randk1, randk2, randk3, randk4;
