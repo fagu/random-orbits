@@ -194,7 +194,7 @@ public:
 		for (slong i = 0; i < fac->num; i++) {
 			fmpzxx r;
 			fmpz_mod_poly_get_coeff_fmpz(r.inner, fac->poly + i, 0, ctx);
-			res.emplace_back(r, fac->exp[i]);
+			res.emplace_back(-r, fac->exp[i]);
 		}
 		fmpz_mod_poly_factor_clear(fac, ctx);
 		fmpz_mod_poly_clear(fm, ctx);

@@ -1,6 +1,8 @@
 #include <cstdio>
 #include <optional>
 #include <random>
+#include <unistd.h>
+#include <getopt.h>
 #include "lib.h"
 #include "arbxx.h"
 using namespace std;
@@ -61,7 +63,7 @@ bool is_maximal(const fmpz_polyxx& f) {
 				return false;
 			for (const auto& re : f.roots_mod(p)) {
 				fmpzxx r = re.first;
-				assert(f(r) == 0);
+				assert(f(r).divisible_by(p));
 				if (f(r).divisible_by(p * p) && f(r + p).divisible_by(p * p))
 					return false;
 			}
@@ -255,30 +257,64 @@ optional<fmpz_polyxx> try_generate(fmpzxx T, int nr_real_embeddings, Generator& 
 	}
 }
 
-void help(int argc, char** argv) {
-	fprintf(stderr, "Usage: %s N r T\n", argc > 0 ? argv[0] : "enumerate");
-	fprintf(stderr, "This will generate N independent random binary cubic forms f with integer coefficients with exactly r real roots which are irreducible over Q and satisfy |disc(f)| <= T, with probability proportional to 1/#Stab(f).\n");
+void show_help(const char* program_name) {
+	fprintf(stderr,
+		"Usage: %s [options] N r T\n"
+		"\n"
+		"This program generates N independent random binary cubic forms f "
+		"with integer coefficients with exactly r real roots which are "
+		"irreducible over Q and satisfy |disc(f)| <= T, with probability "
+		"proportional to 1/#Stab(f).\n"
+		"\n"
+		"Options:\n"
+		"  --only-maximal  Only generate maximal orders.\n"
+		"  -h              Print this help message.\n",
+		program_name);
+}
+
+[[noreturn]] void err_help(const char* program_name) {
+	show_help(program_name);
 	exit(1);
 }
 
-int main(int argc, char **argv) {
-	if (argc != 4)
-		help(argc, argv);
-	long long nr_orbits;
-	if (sscanf(argv[1], "%lld", &nr_orbits) != 1)
-		help(argc, argv);
-	if (nr_orbits < 0)
-		help(argc, argv);
-	int nr_real_embeddings;
-	if (sscanf(argv[2], "%d", &nr_real_embeddings) != 1)
-		help(argc, argv);
-	if (nr_real_embeddings != 3 && nr_real_embeddings != 1)
-		help(argc, argv);
-	fmpzxx T;
-	if (fmpz_set_str(T._fmpz(), argv[3], 10) != 0)
-		help(argc, argv);
-	if (T <= 0)
-		help(argc, argv);
+int only_maximal;
+long long nr_orbits;
+int nr_real_embeddings;
+fmpzxx T;
+
+void parse_args(int argc, char **argv) {
+	const char* program_name = argc > 0 ? argv[0] : "random-cubic";
+	only_maximal = 0;
+	static option long_options[] = {
+		{"only-maximal", no_argument, &only_maximal, 1},
+		{0, 0, 0, 0}
+	};
+	int c;
+	int option_index = 0;
+	while ((c = getopt_long(argc, argv, "h", long_options, &option_index)) != -1) {
+		switch (c) {
+		case 0:
+			break;
+		case 'h': {
+			show_help(program_name);
+			break;
+		}
+		case '?': {
+			err_help(program_name);
+			break;
+		}
+		default:
+			abort();
+		}
+	}
+	if (optind >= argc || sscanf(argv[optind], "%lld", &nr_orbits) != 1 || !(nr_orbits >= 0))
+		err_help(program_name);
+	optind++;
+	if (optind >= argc || sscanf(argv[optind], "%d", &nr_real_embeddings) != 1 || !(nr_real_embeddings == 1 || nr_real_embeddings == 3))
+		err_help(program_name);
+	optind++;
+	if (optind >= argc || fmpz_set_str(T._fmpz(), argv[optind], 10) != 0)
+		err_help(program_name);
 	if (nr_real_embeddings == 3 && T < 49) {
 		fprintf(stderr, "There is no irreducible orbit with 0<disc<49.\n");
 		exit(1);
@@ -287,7 +323,16 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "There is no irreducible orbit with 0<-disc<23.\n");
 		exit(1);
 	}
+	optind++;
+	if (optind != argc)
+		err_help(program_name);
+	if (only_maximal)
+		fprintf(stderr, "Only generating maximal orders.\n");
+}
 
+int main(int argc, char **argv) {
+	parse_args(argc, argv);
+	
 	mt19937 gen(42); // TODO
 	
 	// map<fmpzxx,long long> count;
@@ -295,7 +340,7 @@ int main(int argc, char **argv) {
 		// for (int att = 1; ; att++) {
 		while(true) {
 			optional<fmpz_polyxx> f = try_generate(T, nr_real_embeddings, gen);
-			if (f.has_value()) {
+			if (f.has_value() && (!only_maximal || is_maximal(f.value()))) {
 				//cout << f.value().pretty("x") << endl;
 				for (int i = 0; i < 4; i++) {
 					if (i)
