@@ -26,6 +26,7 @@ slong max_precision = 0;
 chrono::duration<double> time_random(0);
 chrono::duration<double> time_irreducible(0);
 long long fail_smax = 0;
+long long fail_smin = 0;
 long long fail_prob = 0;
 long long fail_azero = 0;
 long long fail_signature = 0;
@@ -135,6 +136,12 @@ optional<fmpz_polyxx> try_generate(const parameters& params, Generator& gen) {
 				fail_smax++;
 				return nullopt;
 			}
+			// If 1 - t^2 >= s^4:
+			if (!lt(SUB(1, POW_UI(t, 2)), POW_UI(s, 4))) {
+				// Start over.
+				fail_smin++;
+				return nullopt;
+			}
 			// l1p = floor(1 + lambda * s^-3)
 			fmpzxx l1p = to_int(FLOOR(ADD(1, MUL(lambda, POW_SI(s, -3)))));
 			// l2p = floor(1 + sqrt(5) * lambda * s^-1)
@@ -148,15 +155,8 @@ optional<fmpz_polyxx> try_generate(const parameters& params, Generator& gen) {
 			// We always have 0 <= lprod <= Lprod.
 			assert(!certainly_negative(lprod));
 			assert(!certainly_positive(SUB(lprod, Lprod)));
-			// alpha = 1 / multiplicity in the Siegel set
-			arbxx alpha = 1;
-			// If s^4 - 2 / sqrt(3) * s^2 + t^2 < 0:
-			if (lt(ADD(SUB(POW_UI(s, 4), MUL(DIV(2, sqrt3), POW_UI(s, 2))), POW_UI(t, 2)), 0)) {
-				// We are in the non-unique part of the Siegel set.
-				alpha = DIV(1, 2);
-			}
-			// With probability 1 - alpha * lprod / Lprod:
-			if (!lt(prob.get(), MUL(alpha, DIV(lprod, Lprod)))) {
+			// With probability 1 - lprod / Lprod:
+			if (!lt(prob.get(), DIV(lprod, Lprod))) {
 				// Start over.
 				fail_prob++;
 				return nullopt;
@@ -453,6 +453,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "  check irreducibility: %lfs\n", time_irreducible.count());
 		fprintf(stderr, "Number of failures due to:\n");
 		fprintf(stderr, "  s > smax: %lld\n", fail_smax);
+		fprintf(stderr, "  s < (1-t^2)^(1/4): %lld\n", fail_smin);
 		fprintf(stderr, "  probability: %lld\n", fail_prob);
 		fprintf(stderr, "  a = 0: %lld\n", fail_azero);
 		fprintf(stderr, "  wrong signature: %lld\n", fail_signature);
