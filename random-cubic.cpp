@@ -287,15 +287,17 @@ void show_help(const char* program_name) {
 	fprintf(stderr,
 		"Usage: %s [options] N r T\n"
 		"\n"
-		"This program generates N independent random binary cubic forms f "
-		"with integer coefficients with exactly r real roots which are "
-		"irreducible over Q and satisfy |disc(f)| <= T, with probability "
+		"This program generates N independent random binary cubic forms f\n"
+		"with integer coefficients with exactly r real roots which are\n"
+		"irreducible over Q and satisfy |disc(f)| <= T, with probability\n"
 		"proportional to 1/#Stab(f).\n"
 		"\n"
 		"Options:\n"
 		"  --only-maximal   Only generate maximal orders.\n"
-		"  --only-triv-aut  Only print orders with trivial automorphism group.\n"
+		"  --only-triv-aut  Only generate orders with trivial automorphism group.\n"
 		"  --verbose        Print extra information to stderr.\n"
+		"  --seed [SEED]    Unsigned 32 bit integer to use as a seed for the\n"
+		"                   random number generator.\n"
 		"  -h               Print this help message.\n",
 		program_name);
 }
@@ -308,16 +310,19 @@ void show_help(const char* program_name) {
 long long nr_orbits;
 parameters params;
 int verbose;
+unsigned int seed;
 
 void parse_args(int argc, char **argv) {
 	const char* program_name = argc > 0 ? argv[0] : "random-cubic";
 	int only_maximal = 0;
 	int only_triv_aut = 0;
 	verbose = 0;
+	seed = 471932630;
 	static option long_options[] = {
 		{"only-maximal", no_argument, &only_maximal, 1},
 		{"only-triv-aut", no_argument, &only_triv_aut, 1},
 		{"verbose", no_argument, &verbose, 1},
+		{"seed", required_argument, 0, 's'},
 		{0, 0, 0, 0}
 	};
 	int c;
@@ -326,6 +331,11 @@ void parse_args(int argc, char **argv) {
 		switch (c) {
 		case 0:
 			break;
+		case 's': {
+			if (sscanf(optarg, "%u", &seed) != 1)
+				err_help(program_name);
+			break;
+		}
 		case 'h': {
 			show_help(program_name);
 			break;
@@ -371,7 +381,7 @@ int main(int argc, char **argv) {
 			fprintf(stderr, "Only generating orders with trivial automorphism group.\n");
 	}
 	
-	mt19937 gen(42); // TODO
+	mt19937 gen(seed);
 	
 	for(long long roun = 0; roun < nr_orbits; roun++) {
 		fmpz_polyxx f = generate(params, gen);
