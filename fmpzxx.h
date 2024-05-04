@@ -173,7 +173,7 @@ public:
 		// FLINT removes the content of the polynomial before factorization, so this is
 		// effectively a factorization over Q.
 		// Hence, f is irreducible over Q if and only if the number of factors is 1.
-		bool irred = pfac->num == 1;
+		bool irred = pfac->num == 1 && pfac->exp[0] == 1;
 		fmpz_poly_factor_clear(pfac);
 		return irred;
 	}
