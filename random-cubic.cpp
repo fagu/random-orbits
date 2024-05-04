@@ -288,13 +288,21 @@ void show_help(const char* program_name) {
 	fprintf(stderr,
 		"Usage: %s [options] N r T\n"
 		"\n"
-		"This program generates N independent random binary cubic forms f\n"
-		"with integer coefficients with exactly r real roots which are\n"
-		"irreducible over Q and satisfy |disc(f)| <= T, with probability\n"
-		"proportional to 1/#Stab(f).\n"
+		"This program generates N random cubic integral domains R with a given\n"
+		"signature r and |disc(R)| <= T.\n"
+		"\n"
+		"The probability of generating a particular ring R is proportional to\n"
+		"1 / #Aut(R).\n"
+		"\n"
+		"Output format:\n"
+		"  The output (stdout) contains one line\n"
+		"    a b c d\n"
+		"  per ring R, consisting of the integer coefficients of a binary cubic\n"
+		"  form a X^3 + b X^2 Y + c X Y^2 + d Y^3 corresponding to R in the Levi\n"
+		"  parameterization.\n"
 		"\n"
 		"Parameters:\n"
-		"  N  Number of orders to generate.\n"
+		"  N  Number of cubic rings to generate.\n"
 		"  r  Number of real embeddings (either 1 or 3).\n"
 		"  T  Upper bound on the absolute value of the discriminant.\n"
 		"     Instead of an integer, you can pass '-' as an argument.\n"
@@ -303,7 +311,7 @@ void show_help(const char* program_name) {
 		"\n"
 		"Options:\n"
 		"  --only-maximal   Only generate maximal orders.\n"
-		"  --only-triv-aut  Only generate orders with trivial automorphism group.\n"
+		"  --only-triv-aut  Only generate rings with trivial automorphism group.\n"
 		"  --verbose        Print extra information to stderr.\n"
 		"  --seed [SEED]    Unsigned 32 bit integer to use as a seed for the\n"
 		"                   random number generator.\n"
@@ -347,6 +355,7 @@ void parse_args(int argc, char **argv) {
 		}
 		case 'h': {
 			show_help(program_name);
+			exit(0);
 			break;
 		}
 		case '?': {
