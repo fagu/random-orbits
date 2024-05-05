@@ -81,14 +81,17 @@ public:
 	friend bool operator!=(const fmpzxx& a, const fmpzxx& b) {
 		return !fmpz_equal(a.inner, b.inner);
 	}
+	friend bool operator<(const fmpzxx& a, const fmpzxx& b) {
+		return fmpz_cmp(a.inner, b.inner) < 0;
+	}
 	friend bool operator>(const fmpzxx& a, const fmpzxx& b) {
 		return fmpz_cmp(a.inner, b.inner) > 0;
 	}
 	friend bool operator<=(const fmpzxx& a, const fmpzxx& b) {
 		return fmpz_cmp(a.inner, b.inner) <= 0;
 	}
-	friend bool operator<(const fmpzxx& a, const fmpzxx& b) {
-		return fmpz_cmp(a.inner, b.inner) < 0;
+	friend bool operator>=(const fmpzxx& a, const fmpzxx& b) {
+		return fmpz_cmp(a.inner, b.inner) >= 0;
 	}
 	int sgn() const {
 		return fmpz_sgn(inner);

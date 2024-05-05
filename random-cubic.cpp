@@ -12,6 +12,7 @@ using namespace std;
 slong max_precision = 0;
 chrono::duration<double> time_random(0);
 chrono::duration<double> time_irreducible(0);
+chrono::duration<double> time_reduce(0);
 long long fail_smax = 0;
 long long fail_smin = 0;
 long long fail_prob = 0;
@@ -89,6 +90,74 @@ struct cubic_form {
 		}
 		return true;
 	}
+	
+	// f(Y, X)
+	cubic_form swap_X_Y() const {
+		return {d, c, b, a};
+	}
+	
+	// f(X + k Y, Y)
+	cubic_form add_kY_to_X(const fmpzxx& k) const {
+		return {a, 3*a*k + b, 3*a*k*k + 2*b*k + c, a*k*k*k + b*k*k + c*k + d};
+	}
+	
+	// f(-X, Y)
+	cubic_form flip_X() const {
+		return {-a, b, -c, d};
+	}
+	
+	// f(X, -Y)
+	cubic_form flip_Y() const {
+		return {a, -b, c, -d};
+	}
+	
+	// Assume f is irreducible over Q.
+	// Replaces f by the unique reduced cubic form in the GL_2(Z)-orbit of f.
+	void reduce() {
+		// See Belabas, A fast algorithm to compute cubic fields.
+		if (disc() > 0) {
+			while(true) {
+				fmpzxx P = b*b - 3*a*c;
+				fmpzxx Q = b*c - 9*a*d;
+				fmpzxx R = c*c - 3*b*d;
+				if (a < 0) {
+					*this = flip_X();
+				} else if (b < 0 || (b == 0 && d < 0)) {
+					*this = flip_Y();
+				} else if (P > R || (P == R && (a > d.abs() || (a == d.abs() && b >= c.abs())))) {
+					*this = swap_X_Y();
+				} else if (Q > P) {
+					*this = add_kY_to_X(-1);
+				} else if (-Q > P) {
+					*this = add_kY_to_X(+1);
+				} else if (Q == 0 && d >= 0) {
+					// In Definition 3.2, Belabas demands that if Q = 0, then d < 0.
+					// This condition is redundant.
+					abort();
+				} else if (P == Q && b >= (3*a-b).abs()) {
+					*this = add_kY_to_X(-1);
+				} else {
+					break;
+				}
+			}
+		} else {
+			while(true) {
+				if (d*d - a*a + a*c - b*d <= 0) {
+					*this = swap_X_Y();
+				} else if (a < 0) {
+					*this = flip_X();
+				} else if (b < 0 || (b == 0 && d < 0)) {
+					*this = flip_Y();
+				} else if (a*d - b*c >= (a+b)*(a+b) + a*c) {
+					*this = add_kY_to_X(+1);
+				} else if (a*d - b*c <= -(a-b)*(a-b) - a*c) {
+					*this = add_kY_to_X(-1);
+				} else {
+					break;
+				}
+			}
+		}
+	}
 };
 
 struct parameters {
@@ -97,6 +166,7 @@ struct parameters {
 	bool only_maximal;
 	bool only_triv_aut;
 	bool uniform;
+	bool reduce;
 };
 
 template<class Generator>
@@ -284,6 +354,10 @@ optional<cubic_form> try_generate(const parameters& params, Generator& gen) {
 				fail_maximal++;
 				return nullopt;
 			}
+			if (params.reduce) {
+				mytimer tim(time_reduce);
+				f.reduce();
+			}
 			return f;
 		} catch (insufficient_precision) {
 			// Increase precision.
@@ -333,6 +407,8 @@ void show_help(const char* program_name) {
 		"  --only-triv-aut  Only generate rings with trivial automorphism group.\n"
 		"  --uniform        Generate all rings with the same probability, instead\n"
 		"                   of with probability proportional to 1 / #Aut(R).\n"
+		"  --reduce         Reduce the cubic forms. Always show the same cubic\n"
+		"                   form for a cubic ring.\n"
 		"  --verbose        Print extra information to stderr.\n"
 		"  --seed [SEED]    Unsigned 32 bit integer to use as a seed for the\n"
 		"                   random number generator.\n"
@@ -357,6 +433,7 @@ void parse_args(int argc, char **argv) {
 	int only_maximal = 0;
 	int only_triv_aut = 0;
 	int uniform = 0;
+	int reduce = 0;
 	verbose = 0;
 	seed = 471932630;
 	progress = 0;
@@ -364,6 +441,7 @@ void parse_args(int argc, char **argv) {
 		{"only-maximal", no_argument, &only_maximal, 1},
 		{"only-triv-aut", no_argument, &only_triv_aut, 1},
 		{"uniform", no_argument, &uniform, 1},
+		{"reduce", no_argument, &reduce, 1},
 		{"verbose", no_argument, &verbose, 1},
 		{"seed", required_argument, 0, 's'},
 		{"progress", no_argument, &progress, 1},
@@ -396,6 +474,7 @@ void parse_args(int argc, char **argv) {
 	params.only_maximal = only_maximal;
 	params.only_triv_aut = only_triv_aut;
 	params.uniform = uniform;
+	params.reduce = reduce;
 	if (optind >= argc || sscanf(argv[optind], "%lld", &nr_orbits) != 1 || !(nr_orbits >= 0))
 		err_help(program_name);
 	optind++;
@@ -438,6 +517,8 @@ int main(int argc, char **argv) {
 			fprintf(stderr, "Only generating maximal orders.\n");
 		if (params.only_triv_aut)
 			fprintf(stderr, "Only generating rings with trivial automorphism group.\n");
+		if (params.reduce)
+			fprintf(stderr, "Reducing the cubic forms.\n");
 	}
 	
 	mt19937 gen(seed);
@@ -462,6 +543,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "Running times:\n");
 		fprintf(stderr, "  generate random numbers: %lfs\n", time_random.count());
 		fprintf(stderr, "  check irreducibility: %lfs\n", time_irreducible.count());
+		fprintf(stderr, "  reduce cubic form: %lfs\n", time_reduce.count());
 		fprintf(stderr, "Number of failures due to:\n");
 		fprintf(stderr, "  s > smax: %lld\n", fail_smax);
 		fprintf(stderr, "  s < (1-t^2)^(1/4): %lld\n", fail_smin);
