@@ -1,5 +1,5 @@
 #include <flint/fmpz.h>
-#include <flint/fmpz_factorxx.h>
+#include <flint/fmpz_factor.h>
 #include <flint/fmpz_poly.h>
 #include <flint/fmpz_poly_factor.h>
 #include <flint/fmpz_mod.h>
