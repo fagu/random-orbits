@@ -24,6 +24,73 @@ long long fail_aut = 0;
 long long fail_uniform = 0;
 long long fail_maximal = 0;
 
+struct cubic_form {
+	// The cubic form a X^3 + ... + d Y^3.
+	fmpzxx a, b, c, d;
+	// The discriminant of the cubic form.
+	fmpzxx disc() const {
+		return b*b*c*c - 4*a*c*c*c - 4*b*b*b*d - 27*a*a*d*d + 18*a*b*c*d;
+	}
+	// The polynomial f(X, 1) = a X^3 + ... + d.
+	fmpz_polyxx polynomial() const {
+		fmpz_polyxx f;
+		f.set_coeff(3, a);
+		f.set_coeff(2, b);
+		f.set_coeff(1, c);
+		f.set_coeff(0, d);
+		return f;
+	}
+	// Assume f is irreducible over Q.
+	// The automorphism group of the corresponding cubic ring R is either C_3 or trivial.
+	// This function returns whether the automorphism group of R is trivial.
+	bool is_triv_aut() const {
+		// Write f = a X^3 + ... + d Y^3.
+		// The ring has nontrivial automorphism group if and only if all of the following hold:
+		//  - disc(f) = s^2 for some integer s.
+		//  - s divides 3ac - b^2 and 3bd - c^2.
+		fmpzxx di = disc();
+		if (!di.is_square())
+			return true;
+		fmpzxx s = di.sqrt();
+		if (!((3*a*c - b*b).divisible_by(s)))
+			return true;
+		if (!((3*b*d - c*c).divisible_by(s)))
+			return true;
+		return false;
+	}
+	
+	// Assume a != 0 and disc(f) != 0.
+	// This function returns whether the corresponding cubic ring is a maximal order.
+	bool is_maximal() const {
+		// The ring can be nonmaximal only at the primes p such that p^2 divides the discriminant of f.
+		for (const auto& pe : disc().factor_abs()) {
+			if (pe.second >= 2) {
+				fmpzxx p = pe.first;
+				// Write f = a X^3 + ... + d Y^3.
+				// The ring is nonmaximal at p if and only if one of the following holds:
+				//  - p divides f
+				//  - p^2 divides a and p divides b.
+				//  - There is a root [r] of the polynomial f(X,1) modulo p such that
+				//    p^2 divides f(r,1) and f(r+p,1).
+				//    This does not depend on the choice of the integer representative r of
+				//    the residue class [r].
+				if (a.divisible_by(p) && b.divisible_by(p) && c.divisible_by(p) && d.divisible_by(p))
+					return false;
+				if (a.divisible_by(p * p) && b.divisible_by(p))
+					return false;
+				fmpz_polyxx pol = polynomial();
+				for (const auto& re : pol.roots_mod(p)) {
+					fmpzxx r = re.first;
+					assert(pol(r).divisible_by(p));
+					if (pol(r).divisible_by(p * p) && pol(r + p).divisible_by(p * p))
+						return false;
+				}
+			}
+		}
+		return true;
+	}
+};
+
 struct parameters {
 	int nr_real_embeddings;
 	fmpzxx T; // discriminant bound
@@ -32,62 +99,8 @@ struct parameters {
 	bool uniform;
 };
 
-// Let f be a cubic form which is irreducible over Q.
-// The automorphism group of the corresponding cubic ring R is either C_3 or trivial.
-// This function returns whether the automorphism group of R is trivial.
-bool is_triv_aut(const fmpz_polyxx& f) {
-	// Write f = a X^3 + ... + d Y^3.
-	// The ring has nontrivial automorphism group if and only if all of the following hold:
-	//  - disc(f) = s^2 for some integer s.
-	//  - s divides 3ac - b^2 and 3bd - c^2.
-	fmpzxx a = f.coeff(3);
-	fmpzxx b = f.coeff(2);
-	fmpzxx c = f.coeff(1);
-	fmpzxx d = f.coeff(0);
-	fmpzxx disc = f.disc();
-	if (!disc.is_square())
-		return true;
-	fmpzxx s = disc.sqrt();
-	if (!((3*a*c - b*b).divisible_by(s)))
-		return true;
-	if (!((3*b*d - c*c).divisible_by(s)))
-		return true;
-	return false;
-}
-
-// Let f be a polynomial of degree three with discriminant != 0.
-// This function returns whether the corresponding cubic ring is a maximal order.
-bool is_maximal(const fmpz_polyxx& f) {
-	fmpzxx disc = f.disc();
-	// The ring can be nonmaximal only at the primes p such that p^2 divides the discriminant of f.
-	for (const auto& pe : disc.factor_abs()) {
-		if (pe.second >= 2) {
-			fmpzxx p = pe.first;
-			// Write f = a X^3 + ... + d Y^3.
-			// The ring is nonmaximal at p if and only if one of the following holds:
-			//  - p divides f
-			//  - p^2 divides a and p divides b.
-			//  - There is a root [r] of the polynomial f(X,1) modulo p such that
-			//    p^2 divides f(r,1) and f(r+p,1).
-			//    This does not depend on the choice of the integer representative r of
-			//    the residue class [r].
-			if (f.coeff(3).divisible_by(p) && f.coeff(2).divisible_by(p) && f.coeff(1).divisible_by(p) && f.coeff(0).divisible_by(p))
-				return false;
-			if (f.coeff(3).divisible_by(p * p) && f.coeff(2).divisible_by(p))
-				return false;
-			for (const auto& re : f.roots_mod(p)) {
-				fmpzxx r = re.first;
-				assert(f(r).divisible_by(p));
-				if (f(r).divisible_by(p * p) && f(r + p).divisible_by(p * p))
-					return false;
-			}
-		}
-	}
-	return true;
-}
-
 template<class Generator>
-optional<fmpz_polyxx> try_generate(const parameters& params, Generator& gen) {
+optional<cubic_form> try_generate(const parameters& params, Generator& gen) {
 	rand_real prob, randt, rands, randk1, randk2, randk3, randk4;
 	for (slong prec = 20; ; prec *= 2) {
 		if (max_precision < prec)
@@ -194,12 +207,8 @@ optional<fmpz_polyxx> try_generate(const parameters& params, Generator& gen) {
 			fmpzxx dmin = to_int(CEIL(dmin_float));
 			// d = dmin + k4
 			fmpzxx d(dmin + k4);
-			// f = a*X^3 + b*X^2 + c*X + d
-			fmpz_polyxx f;
-			f.set_coeff(3, a);
-			f.set_coeff(2, b);
-			f.set_coeff(1, c);
-			f.set_coeff(0, d);
+			// f = a X^3 + ... + d Y^3
+			cubic_form f = {a, b, c, d};
 			if (a == 0) {
 				// Start over.
 				fail_azero++;
@@ -256,22 +265,22 @@ optional<fmpz_polyxx> try_generate(const parameters& params, Generator& gen) {
 			assert(lt(bp, DIV(MUL(sqrt5, lambda), 2)));
 			assert(lt(cp, DIV(MUL(sqrt5, lambda), 2)));
 			assert(lt(dp, DIV(lambda, 2)));
-			// Note: The cubic form aX^3 + ... + dY^3 is irreducible if and only if a != 0 and the polynomial f = aX^3 + ... + d is irreducible.
-			if (!f.irreducible_over_Q()) {
+			// Note: The cubic form aX^3 + ... + dY^3 is irreducible if and only if a != 0 and the polynomial f(X,1) = aX^3 + ... + d is irreducible.
+			if (!f.polynomial().irreducible_over_Q()) {
 				// Start over.
 				fail_irreducible++;
 				return nullopt;
 			}
-			if (params.only_triv_aut && !is_triv_aut(f)) {
+			if (params.only_triv_aut && !f.is_triv_aut()) {
 				fail_aut++;
 				return nullopt;
 			}
-			if (params.uniform && is_triv_aut(f) && uniform_int_distribution<int>(0,2)(gen) != 0) {
+			if (params.uniform && f.is_triv_aut() && uniform_int_distribution<int>(0,2)(gen) != 0) {
 				// Fail with probability 2/3 if Aut(R) = 1.
 				fail_uniform++;
 				return nullopt;
 			}
-			if (params.only_maximal && !is_maximal(f)) {
+			if (params.only_maximal && !f.is_maximal()) {
 				fail_maximal++;
 				return nullopt;
 			}
@@ -284,9 +293,9 @@ optional<fmpz_polyxx> try_generate(const parameters& params, Generator& gen) {
 }
 
 template<class Generator>
-fmpz_polyxx generate(const parameters& params, Generator& gen) {
+cubic_form generate(const parameters& params, Generator& gen) {
 	while(true) {
-		optional<fmpz_polyxx> f = try_generate(params, gen);
+		optional<cubic_form> f = try_generate(params, gen);
 		if (f.has_value())
 			return f.value();
 	}
@@ -436,12 +445,14 @@ int main(int argc, char **argv) {
 	for(long long roun = 0; roun < nr_orbits; roun++) {
 		if (progress)
 			show_progress(roun, nr_orbits);
-		fmpz_polyxx f = generate(params, gen);
-		for (int i = 0; i < 4; i++) {
-			if (i)
-				printf(" ");
-			fmpz_print(f.coeff(i).inner);
-		}
+		cubic_form f = generate(params, gen);
+		fmpz_print(f.a.inner);
+		printf(" ");
+		fmpz_print(f.b.inner);
+		printf(" ");
+		fmpz_print(f.c.inner);
+		printf(" ");
+		fmpz_print(f.d.inner);
 		printf("\n");
 	}
 	if (progress)
