@@ -122,7 +122,7 @@ struct cubic_form {
 				fmpzxx R = c*c - 3*b*d;
 				if (a < 0) {
 					*this = flip_X();
-				} else if (b < 0 || (b == 0 && d < 0)) {
+				} else if (b < 0 || (b == 0 && d >= 0)) {
 					*this = flip_Y();
 				} else if (P > R || (P == R && (a > d.abs() || (a == d.abs() && b >= c.abs())))) {
 					*this = swap_X_Y();
