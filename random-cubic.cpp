@@ -345,7 +345,7 @@ optional<cubic_form> try_generate(const parameters& params, Generator& gen) {
 				fail_aut++;
 				return nullopt;
 			}
-			if (params.uniform && f.is_triv_aut() && uniform_int_distribution<int>(0,2)(gen) != 0) {
+			if (params.uniform && !params.only_triv_aut && f.is_triv_aut() && uniform_int_distribution<int>(0,2)(gen) != 0) {
 				// Fail with probability 2/3 if Aut(R) = 1.
 				fail_uniform++;
 				return nullopt;
