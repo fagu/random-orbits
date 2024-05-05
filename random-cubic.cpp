@@ -10,9 +10,9 @@
 using namespace std;
 
 slong max_precision = 0;
-chrono::duration<double> time_random(0);
-chrono::duration<double> time_irreducible(0);
-chrono::duration<double> time_reduce(0);
+duration<double> time_random(0);
+duration<double> time_irreducible(0);
+duration<double> time_reduce(0);
 long long fail_smax = 0;
 long long fail_smin = 0;
 long long fail_prob = 0;

@@ -1,3 +1,8 @@
+#ifndef RANDOM_ORBIT_FLINTXX_H
+#define RANDOM_ORBIT_FLINTXX_H
+
+#include <utility>
+#include <vector>
 #include <flint/fmpz.h>
 #include <flint/fmpz_factor.h>
 #include <flint/fmpz_poly.h>
@@ -5,6 +10,8 @@
 #include <flint/fmpz_mod.h>
 #include <flint/fmpz_mod_poly.h>
 #include <flint/fmpz_mod_poly_factor.h>
+
+using namespace std;
 
 class fmpz_factorxx;
 
@@ -109,11 +116,11 @@ public:
 		return fmpz_divisible(inner, b.inner);
 	}
 	// Factorization of the absolute value of this number, which is assumed to be nonzero.
-	std::vector<std::pair<fmpzxx,ulong>> factor_abs() const {
+	vector<pair<fmpzxx,ulong>> factor_abs() const {
 		fmpz_factor_t fa;
 		fmpz_factor_init(fa);
 		fmpz_factor(fa, inner);
-		std::vector<std::pair<fmpzxx,ulong>> res;
+		vector<pair<fmpzxx,ulong>> res;
 		res.reserve(fa->num);
 		for (slong i = 0; i < fa->num; i++) {
 			fmpzxx p;
@@ -182,7 +189,7 @@ public:
 	}
 	// Let p be a prime number and assume that the polynomial f is not divisible by p.
 	// Returns the roots of f modulo p together with their multiplicities.
-	std::vector<std::pair<fmpzxx, slong>> roots_mod(const fmpzxx& p) const {
+	vector<pair<fmpzxx, slong>> roots_mod(const fmpzxx& p) const {
 		fmpz_mod_ctx_t ctx;
 		fmpz_mod_ctx_init(ctx, p.inner);
 		fmpz_mod_poly_t fm;
@@ -192,7 +199,7 @@ public:
 		fmpz_mod_poly_factor_t fac;
 		fmpz_mod_poly_factor_init(fac, ctx);
 		fmpz_mod_poly_roots(fac, fm, 1, ctx);
-		std::vector<std::pair<fmpzxx, slong>> res;
+		vector<pair<fmpzxx, slong>> res;
 		res.reserve(fac->num);
 		for (slong i = 0; i < fac->num; i++) {
 			fmpzxx r;
@@ -205,3 +212,5 @@ public:
 		return res;
 	}
 };
+
+#endif

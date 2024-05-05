@@ -1,16 +1,16 @@
 #include <chrono>
-using namespace std;
+using namespace std::chrono;
 
 // Measures the time between construction and destruction and adds it to the duration variable passed during construction.
 class mytimer {
-	chrono::duration<double> &delta;
-	chrono::time_point<chrono::steady_clock> start;
+	duration<double> &delta;
+	time_point<steady_clock> start;
 public:
-	mytimer(chrono::duration<double> &delta_) : delta(delta_) {
-		start = chrono::steady_clock::now();
+	mytimer(duration<double> &delta_) : delta(delta_) {
+		start = steady_clock::now();
 	}
 	~mytimer() {
-		chrono::time_point<chrono::steady_clock> end = chrono::steady_clock::now();
+		time_point<steady_clock> end = steady_clock::now();
 		delta += end - start;
 	}
 };

@@ -1,3 +1,6 @@
+#ifndef RANDOM_ORBIT_ARBXX_H
+#define RANDOM_ORBIT_ARBXX_H
+
 #include <cassert>
 #include <random>
 #include "fmpzxx.h"
@@ -6,6 +9,7 @@
 #else
 #include <flint/arb.h>
 #endif
+
 using namespace std;
 
 #define ADD(a,b) add(a, b, prec)
@@ -84,7 +88,7 @@ inline arbxx add(const arbxx& a, const arbxx& b, slong prec) {
 
 // inline arbxx add(arbxx&& a, const arbxx& b, slong prec) {
 // 	// assert(false);
-// 	arbxx res(std::move(a));
+// 	arbxx res(move(a));
 // 	arb_add(res.inner, res.inner, b.inner, prec);
 // 	return res;
 // }
@@ -221,3 +225,5 @@ public:
 		return res;
 	}
 };
+
+#endif
