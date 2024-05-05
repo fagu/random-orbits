@@ -8,6 +8,19 @@
 #endif
 using namespace std;
 
+#define ADD(a,b) add(a, b, prec)
+#define SUB(a,b) sub(a, b, prec)
+#define MUL(a,b) mul(a, b, prec)
+#define DIV(a,b) div(a, b, prec)
+#define POW_UI(a,b) pow_ui(a, b, prec)
+#define POW_SI(a,b) pow_si(a, b, prec)
+#define ROOT(a,b) root(a, b, prec)
+#define INV(a) inv(a, prec)
+#define SQRT(a) sqrt(a, prec)
+#define LOG(a) log(a, prec)
+#define FLOOR(a) floor(a, prec)
+#define CEIL(a) ceil(a, prec)
+
 struct insufficient_precision {};
 
 class arbxx {

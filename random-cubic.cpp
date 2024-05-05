@@ -9,19 +9,6 @@
 #include "progress.h"
 using namespace std;
 
-#define ADD(a,b) add(a, b, prec)
-#define SUB(a,b) sub(a, b, prec)
-#define MUL(a,b) mul(a, b, prec)
-#define DIV(a,b) div(a, b, prec)
-#define POW_UI(a,b) pow_ui(a, b, prec)
-#define POW_SI(a,b) pow_si(a, b, prec)
-#define ROOT(a,b) root(a, b, prec)
-#define INV(a) inv(a, prec)
-#define SQRT(a) sqrt(a, prec)
-#define LOG(a) log(a, prec)
-#define FLOOR(a) floor(a, prec)
-#define CEIL(a) ceil(a, prec)
-
 slong max_precision = 0;
 chrono::duration<double> time_random(0);
 chrono::duration<double> time_irreducible(0);
@@ -49,6 +36,10 @@ struct parameters {
 // The automorphism group of the corresponding cubic ring R is either C_3 or trivial.
 // This function returns whether the automorphism group of R is trivial.
 bool is_triv_aut(const fmpz_polyxx& f) {
+	// Write f = a X^3 + ... + d Y^3.
+	// The ring has nontrivial automorphism group if and only if all of the following hold:
+	//  - disc(f) = s^2 for some integer s.
+	//  - s divides 3ac - b^2 and 3bd - c^2.
 	fmpzxx a = f.coeff(3);
 	fmpzxx b = f.coeff(2);
 	fmpzxx c = f.coeff(1);
@@ -68,9 +59,18 @@ bool is_triv_aut(const fmpz_polyxx& f) {
 // This function returns whether the corresponding cubic ring is a maximal order.
 bool is_maximal(const fmpz_polyxx& f) {
 	fmpzxx disc = f.disc();
+	// The ring can be nonmaximal only at the primes p such that p^2 divides the discriminant of f.
 	for (const auto& pe : disc.factor_abs()) {
 		if (pe.second >= 2) {
 			fmpzxx p = pe.first;
+			// Write f = a X^3 + ... + d Y^3.
+			// The ring is nonmaximal at p if and only if one of the following holds:
+			//  - p divides f
+			//  - p^2 divides a and p divides b.
+			//  - There is a root [r] of the polynomial f(X,1) modulo p such that
+			//    p^2 divides f(r,1) and f(r+p,1).
+			//    This does not depend on the choice of the integer representative r of
+			//    the residue class [r].
 			if (f.coeff(3).divisible_by(p) && f.coeff(2).divisible_by(p) && f.coeff(1).divisible_by(p) && f.coeff(0).divisible_by(p))
 				return false;
 			if (f.coeff(3).divisible_by(p * p) && f.coeff(2).divisible_by(p))
