@@ -1,4 +1,4 @@
-This command line application generates cubic integral domains with bounded discriminant and given signature uniformly at random.
+This command line application generates cubic integral domains (or invertible ideal classes in quadratic integral domains) with bounded discriminant and given signature uniformly at random.
 
 # Installation
 
@@ -47,7 +47,7 @@ make
 
 # Usage
 
-In the build directory, run `./random-cubic-ring` for help.
+In the build directory, run `./random-cubic-ring` or `./random-quadratic-ideal-class` for help.
 
 ```
 Usage: ./random-cubic-ring [options] N r T
@@ -105,6 +105,8 @@ Generate 100 random cubic integral domains with discriminant in the interval [1,
 ```
 % python -c 'print("1"+"0"*100000)' | ./random-cubic-ring 100 3 - --progress > out.txt
 ```
+
+The following examples are sanity checks recovering all fields of small discriminant.
 
 Generate 10000 random cubic number fields with discriminant in the interval [1,200]. Each line corresponds to a cubic number field. The first number is the number of times this field was generated. The other four numbers are the coefficients of the cubic form. Note that the number field with trivial automorphism group is found about 3 times as often as the three extensions with automorphism group C3:
 ```

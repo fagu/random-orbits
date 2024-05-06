@@ -77,6 +77,17 @@ public:
 		fmpz_cdiv_q(res.inner, a.inner, b.inner);
 		return res;
 	}
+	// The remainder of a modulo b > 0 in the interval [0, b-1].
+	friend fmpzxx remainder(const fmpzxx& a, const fmpzxx& b) {
+		fmpzxx res;
+		fmpz_fdiv_r(res.inner, a.inner, b.inner);
+		return res;
+	}
+	friend fmpzxx divexact(const fmpzxx& a, const fmpzxx& b) {
+		fmpzxx res;
+		fmpz_divexact(res.inner, a.inner, b.inner);
+		return res;
+	}
 	fmpzxx abs() const {
 		fmpzxx res;
 		fmpz_abs(res.inner, inner);
