@@ -1,3 +1,5 @@
+// C++ wrapper of part of the Arb library
+
 #ifndef RANDOM_ORBIT_ARBXX_H
 #define RANDOM_ORBIT_ARBXX_H
 
@@ -12,6 +14,7 @@
 
 using namespace std;
 
+// Macros for operations in ball arithmetic that use the variable "prec" as the precision argument.
 #define ADD(a,b) add(a, b, prec)
 #define SUB(a,b) sub(a, b, prec)
 #define MUL(a,b) mul(a, b, prec)
@@ -25,6 +28,7 @@ using namespace std;
 #define FLOOR(a) floor(a, prec)
 #define CEIL(a) ceil(a, prec)
 
+// Exception indicating that the precision was insufficient to decide a predicate, find the unique integer in an interval, etc.
 struct insufficient_precision {};
 
 class arbxx {
@@ -40,58 +44,46 @@ public:
 	}
 	arbxx(fmpzxx x) {
 		arb_init(inner);
-		arb_set_fmpz(inner, x._fmpz());
+		arb_set_fmpz(inner, x.inner);
 	}
 	arbxx(const arbxx& a) {
 		arb_init(inner);
 		arb_set(inner, a.inner);
 	}
-	// arbxx(arbxx&& a) {
-	// 	inner[0] = a.inner[0];
-	// 	a.destroyed = true;
-	// }
-	// 2^e
-	static arbxx pow2(fmpzxx e) {
-		arbxx res;
-		fmpzxx one(1);
-		arb_set_fmpz_2exp(res.inner, one._fmpz(), e._fmpz());
-		return res;
-	}
 	arbxx& operator=(const arbxx& a) {
 		arb_set(inner, a.inner);
 		return *this;
 	}
-	// arbxx& operator=(arbxx&& a) {
-	// 	if (!destroyed)
-	// 		arb_clear(inner);
-	// 	inner[0] = a.inner[0];
-	// 	a.destroyed = true;
-	// 	return *this;
-	// }
 	~arbxx() {
-		// if (!destroyed)
-			arb_clear(inner);
+		arb_clear(inner);
+	}
+	friend arbxx operator-(const arbxx& a) {
+		arbxx res;
+		arb_neg(res.inner, a.inner);
+		return res;
+	}
+	// Whether a < b. May throw insufficient_precision.
+	friend bool operator<(const arbxx& a, const arbxx& b) {
+		if (arb_lt(a.inner, b.inner))
+			return true;
+		if (arb_ge(a.inner, b.inner))
+			return false;
+		throw insufficient_precision();
+	}
+	// The integer in the given interval. Throws insufficient_precision if there is not *exactly* one such integer.
+	friend fmpzxx to_int(const arbxx& a) {
+		fmpzxx res;
+		if (!arb_get_unique_fmpz(res.inner, a.inner))
+			throw insufficient_precision();
+		return res;
 	}
 };
-
-inline arbxx neg(const arbxx& a) {
-	arbxx res;
-	arb_neg(res.inner, a.inner);
-	return res;
-}
 
 inline arbxx add(const arbxx& a, const arbxx& b, slong prec) {
 	arbxx res;
 	arb_add(res.inner, a.inner, b.inner, prec);
 	return res;
 }
-
-// inline arbxx add(arbxx&& a, const arbxx& b, slong prec) {
-// 	// assert(false);
-// 	arbxx res(move(a));
-// 	arb_add(res.inner, res.inner, b.inner, prec);
-// 	return res;
-// }
 
 inline arbxx sub(const arbxx& a, const arbxx& b, slong prec) {
 	arbxx res;
@@ -123,12 +115,6 @@ inline arbxx sqrt(const arbxx& a, slong prec) {
 	return res;
 }
 
-inline arbxx log(const arbxx& a, slong prec) {
-	arbxx res;
-	arb_log(res.inner, a.inner, prec);
-	return res;
-}
-
 inline arbxx root(const arbxx& a, ulong k, slong prec) {
 	arbxx res;
 	arb_root_ui(res.inner, a.inner, k, prec);
@@ -150,22 +136,6 @@ inline arbxx pow_si(const arbxx& a, slong e, slong prec) {
 		return pow_ui(a, e, prec);
 }
 
-inline bool certainly_negative(const arbxx& a) {
-	return arb_is_negative(a.inner);
-}
-
-inline bool certainly_positive(const arbxx& a) {
-	return arb_is_positive(a.inner);
-}
-
-inline bool lt(const arbxx& a, const arbxx& b) {
-	if (arb_lt(a.inner, b.inner))
-		return true;
-	if (arb_ge(a.inner, b.inner))
-		return false;
-	throw insufficient_precision();
-}
-
 inline arbxx floor(const arbxx& a, slong prec) {
 	arbxx res;
 	arb_floor(res.inner, a.inner, prec);
@@ -178,26 +148,6 @@ inline arbxx ceil(const arbxx& a, slong prec) {
 	return res;
 }
 
-inline fmpzxx to_int(const arbxx& a) {
-	fmpzxx res;
-	if (!arb_get_unique_fmpz(res._fmpz(), a.inner))
-		throw insufficient_precision();
-	return res;
-}
-
-inline string to_str(const arbxx& a, slong digits) {
-	char* s = arb_get_str(a.inner, digits, 0);
-	string res(s);
-	free(s);
-	return res;
-}
-
-inline arbxx unionn(const arbxx& a, const arbxx& b, slong prec) {
-	arbxx res;
-	arb_union(res.inner, a.inner, b.inner, prec);
-	return res;
-}
-
 // A random real number in the interval [0,1) with given precision.
 class rand_real {
 private:
@@ -205,7 +155,7 @@ private:
 	slong prec;
 public:
 	rand_real() : numerator(0), prec(0) {}
-	// Using the given random number generator, generates bits of the random number until it exactly new_prec bits (after the decimal) are fixed.
+	// Using the given random number generator, generates more bits of the random number until exactly new_prec bits (after the decimal) are fixed.
 	template<class Generator>
 	void refine(slong new_prec, Generator& gen) {
 		assert(new_prec >= prec);
@@ -215,12 +165,12 @@ public:
 				numerator.set_bit(i);
 		prec = new_prec;
 	}
-	// Returns the interval with current precision contain the random number.
+	// Returns the interval containing the random number with the current precision.
 	arbxx get() const {
 		fmpzxx num_f(2*numerator+1);
 		fmpzxx prec_f(-(prec+1));
 		arbxx res;
-		arb_set_fmpz_2exp(res.inner, num_f._fmpz(), prec_f._fmpz());
+		arb_set_fmpz_2exp(res.inner, num_f.inner, prec_f.inner);
 		arb_add_error_2exp_si(res.inner, -(prec+1));
 		return res;
 	}

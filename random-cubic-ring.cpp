@@ -12,6 +12,7 @@ using namespace std;
 slong max_precision = 0;
 duration<double> time_random(0);
 duration<double> time_irreducible(0);
+duration<double> time_maximal(0);
 duration<double> time_reduce(0);
 long long fail_smax = 0;
 long long fail_smin = 0;
@@ -44,8 +45,7 @@ struct cubic_form {
 	// Assume f is irreducible over Q.
 	// The automorphism group of the corresponding cubic ring R is either C_3 or trivial.
 	// This function returns whether the automorphism group of R is trivial.
-	bool is_triv_aut() const {
-		// Write f = a X^3 + ... + d Y^3.
+	bool has_trivial_aut_group() const {
 		// The ring has nontrivial automorphism group if and only if all of the following hold:
 		//  - disc(f) = s^2 for some integer s.
 		//  - s divides 3ac - b^2 and 3bd - c^2.
@@ -60,14 +60,13 @@ struct cubic_form {
 		return false;
 	}
 	
-	// Assume a != 0 and disc(f) != 0.
+	// Assume disc(f) != 0.
 	// This function returns whether the corresponding cubic ring is a maximal order.
 	bool is_maximal() const {
 		// The ring can be nonmaximal only at the primes p such that p^2 divides the discriminant of f.
 		for (const auto& pe : disc().factor_abs()) {
 			if (pe.second >= 2) {
 				fmpzxx p = pe.first;
-				// Write f = a X^3 + ... + d Y^3.
 				// The ring is nonmaximal at p if and only if one of the following holds:
 				//  - p divides f
 				//  - p^2 divides a and p divides b.
@@ -80,8 +79,7 @@ struct cubic_form {
 				if (a.divisible_by(p * p) && b.divisible_by(p))
 					return false;
 				fmpz_polyxx pol = polynomial();
-				for (const auto& re : pol.roots_mod(p)) {
-					fmpzxx r = re.first;
+				for (const fmpzxx& r : pol.roots_mod(p)) {
 					assert(pol(r).divisible_by(p));
 					if (pol(r).divisible_by(p * p) && pol(r + p).divisible_by(p * p))
 						return false;
@@ -126,16 +124,14 @@ struct cubic_form {
 					*this = flip_Y();
 				} else if (P > R || (P == R && (a > d.abs() || (a == d.abs() && b >= c.abs())))) {
 					*this = swap_X_Y();
-				} else if (Q > P) {
+				} else if (P < Q || (P == Q && b >= (3*a-b).abs())) {
 					*this = add_kY_to_X(-1);
-				} else if (-Q > P) {
+				} else if (P < -Q) {
 					*this = add_kY_to_X(+1);
 				} else if (Q == 0 && d >= 0) {
 					// In Definition 3.2, Belabas demands that if Q = 0, then d < 0.
 					// This condition is redundant.
 					abort();
-				} else if (P == Q && b >= (3*a-b).abs()) {
-					*this = add_kY_to_X(-1);
 				} else {
 					break;
 				}
@@ -169,22 +165,24 @@ struct parameters {
 	bool reduce;
 };
 
+// Tries to generate a cubic form.
+// Returns nullopt for failure.
 template<class Generator>
 optional<cubic_form> try_generate(const parameters& params, Generator& gen) {
-	rand_real prob, randt, rands, randk1, randk2, randk3, randk4;
+	rand_real tau, sigma, pi, Delta1, Delta2, Delta3, Delta4;
 	for (slong prec = 20; ; prec *= 2) {
 		if (max_precision < prec)
 			max_precision = prec;
 		// fprintf(stderr, "Precision = %ld\n", prec);
 		{
 			mytimer tim(time_random);
-			prob.refine(prec, gen);
-			randt.refine(prec, gen);
-			rands.refine(prec, gen);
-			randk1.refine(prec, gen);
-			randk2.refine(prec, gen);
-			randk3.refine(prec, gen);
-			randk4.refine(prec, gen);
+			pi.refine(prec, gen);
+			tau.refine(prec, gen);
+			sigma.refine(prec, gen);
+			Delta1.refine(prec, gen);
+			Delta2.refine(prec, gen);
+			Delta3.refine(prec, gen);
+			Delta4.refine(prec, gen);
 		}
 		arbxx sqrt3 = SQRT(3);
 		arbxx sqrt5 = SQRT(5);
@@ -197,7 +195,6 @@ optional<cubic_form> try_generate(const parameters& params, Generator& gen) {
 		arbxx smin = SQRT(DIV(sqrt3, 2));
 		// smax = (lambda / 2)^(1/3)
 		arbxx smax = ROOT(DIV(lambda, 2), 3);
-		// fprintf(stderr, "smin = %s, smax = %s\n", to_str(smin, prec).c_str(), to_str(smax, prec).c_str());
 		// L1p = smax^3 + lambda
 		arbxx L1p = ADD(POW_SI(smax, 3), lambda);
 		// L2p = smax + sqrt(5) * lambda
@@ -209,18 +206,18 @@ optional<cubic_form> try_generate(const parameters& params, Generator& gen) {
 		// Lprod = L1p*L2p*L3p*L4p
 		arbxx Lprod = MUL(MUL(L1p, L2p), MUL(L3p, L4p));
 		try {
-			// t = random number in [-1/2,1/2)
-			arbxx t = SUB(randt.get(), DIV(1,2));
-			// s = random number in [smin, infinity) with probability density proportional to s^-2 d*s.
-			arbxx s = DIV(smin, SQRT(rands.get()));
+			// t = tau - 1/2 = random number in [-1/2,1/2)
+			arbxx t = SUB(tau.get(), DIV(1,2));
+			// s = smin / sqrt(sigma) = random number in [smin, infinity) with probability density proportional to s^-2 d*s.
+			arbxx s = DIV(smin, SQRT(sigma.get()));
 			// If s >= smax:
-			if (!lt(s, smax)) {
+			if (!(s < smax)) {
 				// Start over.
 				fail_smax++;
 				return nullopt;
 			}
 			// If 1 - t^2 >= s^4:
-			if (!lt(SUB(1, POW_UI(t, 2)), POW_UI(s, 4))) {
+			if (!(SUB(1, POW_UI(t, 2)) < POW_UI(s, 4))) {
 				// Start over.
 				fail_smin++;
 				return nullopt;
@@ -235,57 +232,53 @@ optional<cubic_form> try_generate(const parameters& params, Generator& gen) {
 			fmpzxx l4p = to_int(FLOOR(ADD(1, MUL(lambda, POW_UI(s, 3)))));
 			// lprod = l1p*l2p*l3p*l4p
 			fmpzxx lprod(l1p*l2p*l3p*l4p);
-			// We always have 0 <= lprod <= Lprod.
-			assert(!certainly_negative(lprod));
-			assert(!certainly_positive(SUB(lprod, Lprod)));
 			// With probability 1 - lprod / Lprod:
-			if (!lt(prob.get(), DIV(lprod, Lprod))) {
+			if (!(pi.get() < DIV(lprod, Lprod))) {
 				// Start over.
 				fail_prob++;
 				return nullopt;
 			}
-			// Random integers 0 <= ki < lip for all i
-			fmpzxx k1 = to_int(FLOOR(MUL(randk1.get(), l1p)));
-			fmpzxx k2 = to_int(FLOOR(MUL(randk2.get(), l2p)));
-			fmpzxx k3 = to_int(FLOOR(MUL(randk3.get(), l3p)));
-			fmpzxx k4 = to_int(FLOOR(MUL(randk4.get(), l4p)));
+			// Random integers 0 <= deltai < lip for all i
+			fmpzxx delta1 = to_int(FLOOR(MUL(Delta1.get(), l1p)));
+			fmpzxx delta2 = to_int(FLOOR(MUL(Delta2.get(), l2p)));
+			fmpzxx delta3 = to_int(FLOOR(MUL(Delta3.get(), l3p)));
+			fmpzxx delta4 = to_int(FLOOR(MUL(Delta4.get(), l4p)));
 			// amin = ceil(- l1p / 2)
 			fmpzxx amin(cdiv_q(-l1p, 2));
-			// a = amin + k1
-			fmpzxx a(amin + k1);
-			// bmin_float = - l2p / 2 + 3 * t * a
-			arbxx bmin_float = neg(DIV(l2p, 2));
-			bmin_float = ADD(bmin_float, MUL(MUL(3, t), a));
-			// bmin = ceil(bmin_float)
-			fmpzxx bmin = to_int(CEIL(bmin_float));
-			// b = bmin + k2
-			fmpzxx b(bmin + k2);
-			// cmin_float = - l3p / 2 - 3 * t^2 * a + 2 * t * b
-			arbxx cmin_float = neg(DIV(l3p, 2));
-			cmin_float = SUB(cmin_float, MUL(MUL(3, POW_UI(t, 2)), a));
-			cmin_float = ADD(cmin_float, MUL(MUL(2, t), b));
-			// cmin = ceil(cmin_float)
-			fmpzxx cmin = to_int(CEIL(cmin_float));
-			// c = cmin + k3
-			fmpzxx c(cmin + k3);
-			// dmin_float = - l4p / 2 + t^3 * a - t^2 * b + t * c
-			arbxx dmin_float = neg(DIV(l4p, 2));
-			dmin_float = ADD(dmin_float, MUL(POW_UI(t, 3), a));
-			dmin_float = SUB(dmin_float, MUL(POW_UI(t, 2), b));
-			dmin_float = ADD(dmin_float, MUL(t, c));
-			// dmin = ceil(dmin_float)
-			fmpzxx dmin = to_int(CEIL(dmin_float));
-			// d = dmin + k4
-			fmpzxx d(dmin + k4);
-			// f = a X^3 + ... + d Y^3
-			cubic_form f = {a, b, c, d};
+			// a = amin + delta1
+			fmpzxx a(amin + delta1);
 			if (a == 0) {
 				// Start over.
 				fail_azero++;
 				return nullopt;
 			}
+			// bmin_float = - l2p / 2 + 3 * t * a
+			arbxx bmin_float = - DIV(l2p, 2);
+			bmin_float = ADD(bmin_float, MUL(MUL(3, t), a));
+			// bmin = ceil(bmin_float)
+			fmpzxx bmin = to_int(CEIL(bmin_float));
+			// b = bmin + delta2
+			fmpzxx b(bmin + delta2);
+			// cmin_float = - l3p / 2 - 3 * t^2 * a + 2 * t * b
+			arbxx cmin_float = - DIV(l3p, 2);
+			cmin_float = SUB(cmin_float, MUL(MUL(3, POW_UI(t, 2)), a));
+			cmin_float = ADD(cmin_float, MUL(MUL(2, t), b));
+			// cmin = ceil(cmin_float)
+			fmpzxx cmin = to_int(CEIL(cmin_float));
+			// c = cmin + delta3
+			fmpzxx c(cmin + delta3);
+			// dmin_float = - l4p / 2 + t^3 * a - t^2 * b + t * c
+			arbxx dmin_float = - DIV(l4p, 2);
+			dmin_float = ADD(dmin_float, MUL(POW_UI(t, 3), a));
+			dmin_float = SUB(dmin_float, MUL(POW_UI(t, 2), b));
+			dmin_float = ADD(dmin_float, MUL(t, c));
+			// dmin = ceil(dmin_float)
+			fmpzxx dmin = to_int(CEIL(dmin_float));
+			// d = dmin + delta4
+			fmpzxx d(dmin + delta4);
+			// f = a X^3 + ... + d Y^3
+			cubic_form f = {a, b, c, d};
 			fmpzxx disc = f.disc();
-			//fmpz_poly_discriminant(disc._fmpz(), f._poly());
 			int disc_sgn = params.nr_real_embeddings == 3 ? 1 : -1;
 			if (disc.sgn() != disc_sgn) {
 				// Wrong signature.
@@ -299,6 +292,7 @@ optional<cubic_form> try_generate(const parameters& params, Generator& gen) {
 				fail_abs_disc++;
 				return nullopt;
 			}
+			// ap X^3 + ... + dp Y^3 = a(s)^-1 n(-t) f.
 			// ap = a * s^3
 			arbxx ap = a;
 			ap = MUL(ap, POW_UI(s, 3));
@@ -326,31 +320,32 @@ optional<cubic_form> try_generate(const parameters& params, Generator& gen) {
 			q = ADD(q, MUL(2, MUL(ap, cp)));
 			q = ADD(q, MUL(2, MUL(bp, dp)));
 			// If q >= sqrt(|disc|) * R^2:
-			if (!lt(q, MUL(SQRT(absdisc), POW_UI(R, 2)))) {
+			if (!(q < MUL(SQRT(absdisc), POW_UI(R, 2)))) {
 				// Start over.
 				fail_in_ball++;
 				return nullopt;
 			}
-			assert(lt(ap, DIV(lambda, 2)));
-			assert(lt(bp, DIV(MUL(sqrt5, lambda), 2)));
-			assert(lt(cp, DIV(MUL(sqrt5, lambda), 2)));
-			assert(lt(dp, DIV(lambda, 2)));
-			// Note: The cubic form aX^3 + ... + dY^3 is irreducible if and only if a != 0 and the polynomial f(X,1) = aX^3 + ... + d is irreducible.
+			assert(ap < DIV(lambda, 2));
+			assert(bp < DIV(MUL(sqrt5, lambda), 2));
+			assert(cp < DIV(MUL(sqrt5, lambda), 2));
+			assert(dp < DIV(lambda, 2));
+			// The cubic form aX^3 + ... + dY^3 is irreducible if and only if a != 0 and the polynomial f(X,1) = aX^3 + ... + d is irreducible.
 			if (!f.polynomial().irreducible_over_Q()) {
 				// Start over.
 				fail_irreducible++;
 				return nullopt;
 			}
-			if (params.only_triv_aut && !f.is_triv_aut()) {
+			if (params.only_triv_aut && !f.has_trivial_aut_group()) {
 				fail_aut++;
 				return nullopt;
 			}
-			if (params.uniform && !params.only_triv_aut && f.is_triv_aut() && uniform_int_distribution<int>(0,2)(gen) != 0) {
+			if (params.uniform && !params.only_triv_aut && f.has_trivial_aut_group() && uniform_int_distribution<int>(0,2)(gen) != 0) {
 				// Fail with probability 2/3 if Aut(R) = 1.
 				fail_uniform++;
 				return nullopt;
 			}
 			if (params.only_maximal && !f.is_maximal()) {
+				mytimer tim(time_maximal);
 				fail_maximal++;
 				return nullopt;
 			}
@@ -366,6 +361,7 @@ optional<cubic_form> try_generate(const parameters& params, Generator& gen) {
 	}
 }
 
+// Keeps trying to generate a cubic form until successful.
 template<class Generator>
 cubic_form generate(const parameters& params, Generator& gen) {
 	while(true) {
@@ -484,10 +480,10 @@ void parse_args(int argc, char **argv) {
 	if (optind >= argc)
 		err_help(program_name);
 	if (strcmp(argv[optind], "-") == 0) {
-		if (fmpz_fread(stdin, params.T._fmpz()) <= 0)
+		if (fmpz_fread(stdin, params.T.inner) <= 0)
 			err_help(program_name);
 	} else {
-		if (fmpz_set_str(params.T._fmpz(), argv[optind], 10) != 0)
+		if (fmpz_set_str(params.T.inner, argv[optind], 10) != 0)
 			err_help(program_name);
 	}
 	optind++;
@@ -543,6 +539,7 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "Running times:\n");
 		fprintf(stderr, "  generate random numbers: %lfs\n", time_random.count());
 		fprintf(stderr, "  check irreducibility: %lfs\n", time_irreducible.count());
+		fprintf(stderr, "  check maximality: %lfs\n", time_maximal.count());
 		fprintf(stderr, "  reduce cubic form: %lfs\n", time_reduce.count());
 		fprintf(stderr, "Number of failures due to:\n");
 		fprintf(stderr, "  s > smax: %lld\n", fail_smax);

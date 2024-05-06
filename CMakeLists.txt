@@ -32,3 +32,6 @@ endif()
 
 add_executable(random-cubic-ring random-cubic-ring.cpp)
 add_executable(random-quadratic-ideal-class random-quadratic-ideal-class.cpp)
+
+target_compile_options(random-cubic-ring PRIVATE -Wall -Wextra)
+target_compile_options(random-quadratic-ideal-class PRIVATE -Wall -Wextra)

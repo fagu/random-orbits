@@ -1,3 +1,5 @@
+// C++ wrapper of part of the FLINT library
+
 #ifndef RANDOM_ORBIT_FLINTXX_H
 #define RANDOM_ORBIT_FLINTXX_H
 
@@ -12,8 +14,6 @@
 #include <flint/fmpz_mod_poly_factor.h>
 
 using namespace std;
-
-class fmpz_factorxx;
 
 class fmpzxx {
 public:
@@ -35,9 +35,6 @@ public:
 	}
 	~fmpzxx() {
 		fmpz_clear(inner);
-	}
-	fmpz_t& _fmpz() {
-		return inner;
 	}
 	// 2^e
 	static fmpzxx exp2(ulong e) {
@@ -171,16 +168,6 @@ public:
 		fmpz_poly_get_coeff_fmpz(res.inner, inner, n);
 		return res;
 	}
-	fmpzxx disc() const {
-		fmpzxx res;
-		fmpz_poly_discriminant(res.inner, inner);
-		return res;
-	}
-	fmpzxx content() const {
-		fmpzxx res;
-		fmpz_poly_content(res.inner, inner);
-		return res;
-	}
 	fmpzxx operator()(const fmpzxx& x) const {
 		fmpzxx res;
 		fmpz_poly_evaluate_fmpz(res.inner, inner, x.inner);
@@ -199,8 +186,8 @@ public:
 		return irred;
 	}
 	// Let p be a prime number and assume that the polynomial f is not divisible by p.
-	// Returns the roots of f modulo p together with their multiplicities.
-	vector<pair<fmpzxx, slong>> roots_mod(const fmpzxx& p) const {
+	// Returns the roots of f modulo p.
+	vector<fmpzxx> roots_mod(const fmpzxx& p) const {
 		fmpz_mod_ctx_t ctx;
 		fmpz_mod_ctx_init(ctx, p.inner);
 		fmpz_mod_poly_t fm;
@@ -209,13 +196,13 @@ public:
 			fmpz_mod_poly_set_coeff_fmpz(fm, i, coeff(i).inner, ctx);
 		fmpz_mod_poly_factor_t fac;
 		fmpz_mod_poly_factor_init(fac, ctx);
-		fmpz_mod_poly_roots(fac, fm, 1, ctx);
-		vector<pair<fmpzxx, slong>> res;
+		fmpz_mod_poly_roots(fac, fm, 0, ctx);
+		vector<fmpzxx> res;
 		res.reserve(fac->num);
 		for (slong i = 0; i < fac->num; i++) {
 			fmpzxx r;
 			fmpz_mod_poly_get_coeff_fmpz(r.inner, fac->poly + i, 0, ctx);
-			res.emplace_back(-r, fac->exp[i]);
+			res.emplace_back(-r);
 		}
 		fmpz_mod_poly_factor_clear(fac, ctx);
 		fmpz_mod_poly_clear(fm, ctx);
