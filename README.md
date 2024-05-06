@@ -106,7 +106,7 @@ Generate 100 random cubic integral domains with discriminant in the interval [1,
 % python -c 'print("1"+"0"*100000)' | ./random-cubic 100 3 - --progress > out.txt
 ```
 
-Generate 10000 random cubic number fields with discriminant in the interval [1,200]. Each line corresponds to a cubic number field. The first number is the number of times this field was generated. The other four numbers are the coefficients of the cubic form. Note that the extension with trivial automorphism group occurs is found about 3 times as often as the three extensions with automorphism group C3:
+Generate 10000 random cubic number fields with discriminant in the interval [1,200]. Each line corresponds to a cubic number field. The first number is the number of times this field was generated. The other four numbers are the coefficients of the cubic form. Note that the number field with trivial automorphism group is found about 3 times as often as the three extensions with automorphism group C3:
 ```
 % ./random-cubic 10000 3 200 --only-maximal --reduce | sort | uniq -c
    1627 1 0 -3 1
