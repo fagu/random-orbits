@@ -429,7 +429,7 @@ unsigned int seed;
 int progress;
 
 void parse_args(int argc, char **argv) {
-	const char* program_name = argc > 0 ? argv[0] : "random-cubic";
+	const char* program_name = argc > 0 ? argv[0] : "random-cubic-ring";
 	int only_maximal = 0;
 	int only_triv_aut = 0;
 	int uniform = 0;

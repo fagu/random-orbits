@@ -30,5 +30,5 @@ else()
 endif()
 
 
-add_executable(random-cubic random-cubic.cpp)
-add_executable(random-quadratic random-quadratic.cpp)
+add_executable(random-cubic-ring random-cubic-ring.cpp)
+add_executable(random-quadratic-ideal-class random-quadratic-ideal-class.cpp)

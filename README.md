@@ -47,10 +47,10 @@ make
 
 # Usage
 
-In the build directory, run `./random-cubic` for help.
+In the build directory, run `./random-cubic-ring` for help.
 
 ```
-Usage: ./random-cubic [options] N r T
+Usage: ./random-cubic-ring [options] N r T
 
 This program generates N random cubic integral domains R with a given
 signature r and |disc(R)| <= T.
@@ -93,22 +93,22 @@ Options:
 
 Generate 100000 random cubic integral domains with discriminant in the interval [1,10^30]:
 ```
-% ./random-cubic 100000 3 1000000000000000000000000000000 --progress > out.txt
+% ./random-cubic-ring 100000 3 1000000000000000000000000000000 --progress > out.txt
 ```
 
 Generate 100000 random cubic integral domains with discriminant in the interval [-10^30,-1]:
 ```
-% ./random-cubic 100000 1 1000000000000000000000000000000 --progress > out.txt
+% ./random-cubic-ring 100000 1 1000000000000000000000000000000 --progress > out.txt
 ```
 
 Generate 100 random cubic integral domains with discriminant in the interval [1,10^100000]:
 ```
-% python -c 'print("1"+"0"*100000)' | ./random-cubic 100 3 - --progress > out.txt
+% python -c 'print("1"+"0"*100000)' | ./random-cubic-ring 100 3 - --progress > out.txt
 ```
 
 Generate 10000 random cubic number fields with discriminant in the interval [1,200]. Each line corresponds to a cubic number field. The first number is the number of times this field was generated. The other four numbers are the coefficients of the cubic form. Note that the number field with trivial automorphism group is found about 3 times as often as the three extensions with automorphism group C3:
 ```
-% ./random-cubic 10000 3 200 --only-maximal --reduce | sort | uniq -c
+% ./random-cubic-ring 10000 3 200 --only-maximal --reduce | sort | uniq -c
    1627 1 0 -3 1
    1695 1 1 -2 -1
    4921 1 1 -3 -1
@@ -117,7 +117,7 @@ Generate 10000 random cubic number fields with discriminant in the interval [1,2
 
 The same, but with discriminants in the interval [-100,-1]. All such number fields have trivial automorphism group:
 ```
-% ./random-cubic 10000 1 100 --only-maximal --reduce | sort | uniq -c
+% ./random-cubic-ring 10000 1 100 --only-maximal --reduce | sort | uniq -c
    1366 1 0 1 1
    1461 1 0 2 1
    1417 1 1 1 2
@@ -129,12 +129,12 @@ The same, but with discriminants in the interval [-100,-1]. All such number fiel
 
 Find all 4804 cubic number fields with discriminant in the interval [1,100000]:
 ```
-% ./random-cubic 80000 3 100000 --only-maximal --reduce | sort | uniq | wc -l
+% ./random-cubic-ring 80000 3 100000 --only-maximal --reduce | sort | uniq | wc -l
 4804
 ```
 
 Find all 4753 cubic number fields with discriminant in the interval [1,100000] and trivial automorphism group:
 ```
-% ./random-cubic 50000 3 100000 --only-maximal --only-triv-aut --reduce | sort | uniq | wc -l
+% ./random-cubic-ring 50000 3 100000 --only-maximal --only-triv-aut --reduce | sort | uniq | wc -l
 4753
 ```
